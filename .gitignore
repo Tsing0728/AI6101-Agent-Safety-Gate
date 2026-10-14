@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated results and data
+FullSmoke/
+runs/
+data/
+*.xlsx
+*.jsonl
+
+# dsh runtime homes
+.dsh-home*/
+
+# Model artifacts / checkpoints
+checkpoints/
+*.safetensors
+*.gguf
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
