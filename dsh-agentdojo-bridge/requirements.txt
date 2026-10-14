@@ -1,0 +1,8 @@
+# The dsh Python SDK (drives DeepSeek Harness as a subprocess).
+# Published wheel; the matching runtime binary wheel installs alongside it.
+deepseek-harness-sdk
+
+# AgentDojo benchmark (Python). Install the local clone in editable mode:
+#   pip install -e D:\Repo\agentdojo-src
+# or point PYTHONPATH at D:\Repo\agentdojo-src\src
+
