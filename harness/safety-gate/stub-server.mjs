@@ -1,0 +1,46 @@
+// 假的安全门模型服务
+// 用来测试插件。按简单规则返回两个 label：
+//   只读工具        -> AUTHORIZED   / LOW   （policy: allow）
+//   会影响外部的     -> UNAUTHORIZED / HIGH  （policy: deny）
+//   其他写操作       -> UNCERTAIN    / LOW   （policy: ask）
+// 运行：node stub-server.mjs        （默认端口 8001，可用 PORT 环境变量修改）
+import http from 'node:http'
+
+const PORT = Number(process.env.PORT || 8001)
+
+function reply(res, status, obj) {
+  res.writeHead(status, { 'Content-Type': 'application/json' })
+  res.end(JSON.stringify(obj))
+}
+
+http.createServer((req, res) => {
+  if (req.method !== 'POST' || !req.url.startsWith('/v1/chat/completions')) {
+    return reply(res, 404, { error: { message: 'not found', type: 'invalid_request_error', code: 404 } })
+  }
+  let raw = ''
+  req.on('data', c => (raw += c))
+  req.on('end', () => {
+    let body, input
+    try {
+      body = JSON.parse(raw)
+      input = JSON.parse(body.messages.find(m => m.role === 'user').content)
+    } catch (err) {
+      return reply(res, 400, { error: { message: `bad request: ${err.message}`, type: 'invalid_request_error', code: 400 } })
+    }
+    const meta = input.tool_metadata || {}
+    let authorization, risk_level
+    if (meta.read_only) { authorization = 'AUTHORIZED'; risk_level = 'LOW' }
+    else if (meta.touches_remote) { authorization = 'UNAUTHORIZED'; risk_level = 'HIGH' }
+    else { authorization = 'UNCERTAIN'; risk_level = 'LOW' }
+
+    console.log(`[stub] ${input.tool_name} -> ${authorization} / ${risk_level}  (trace ${input.trace?.length ?? 0} 条)`)
+    reply(res, 200, {
+      id: 'chatcmpl-stub-' + Date.now(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: body.model,
+      choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify({ authorization, risk_level }) }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: Math.ceil(raw.length / 4), completion_tokens: 14, total_tokens: Math.ceil(raw.length / 4) + 14 },
+    })
+  })
+}).listen(PORT, '127.0.0.1', () => console.log(`[stub] 假模型服务已启动：http://127.0.0.1:${PORT}/v1/chat/completions`))
