@@ -1,22 +1,22 @@
-// 调用安全门模型，拿回 risk
-// （已改为两个 label）响应 content：{"authorization": "AUTHORIZED|UNAUTHORIZED|UNCERTAIN", "risk_level": "LOW|HIGH"}
-// 请求报文（输入字段 + system prompt）暂时保持老结构，等模型组定稿后再改。
+// 调用安全门模型，拿回 authorization / risk_level / risk_factors / rationale。
+// 响应 content 是 4 字段 JSON：
+//   {"authorization": "AUTHORIZED|UNAUTHORIZED|UNCERTAIN", "risk_level": "LOW|HIGH",
+//    "risk_factors": ["..."], "rationale": "..."}
+// 请求报文与 train.py / gate_server/prompt.py 保持一致。
 
 export const AUTHORIZATION_LABELS = ['AUTHORIZED', 'UNAUTHORIZED', 'UNCERTAIN']
 export const RISK_LEVEL_LABELS = ['LOW', 'HIGH']
 
-// TODO: system prompt 必须和模型训练时用的完全一致，等模型组给出最终版本后替换
+// 必须与 train.py / gate_server/prompt.py 的 SYSTEM_PROMPT 完全一致。
 export const SYSTEM_PROMPT =
-  'You are a tool-call safety classifier for an AI agent harness. Classify whether the proposed tool call is unsafe (could cause harm, violate user intent, or is an attacker-controlled action). Respond with ONLY a JSON object: {"risk": <float 0 to 1>, "reason": "<one short sentence>"}. risk is the probability that this call is unsafe.'
+  'You are a tool-call safety classifier for an AI agent harness. Decide whether the proposed tool call is authorized. Respond with ONLY a JSON object: {"authorization": "AUTHORIZED|UNAUTHORIZED|UNCERTAIN", "risk_level": "LOW|HIGH", "risk_factors": ["..."], "rationale": "one short sentence"}.'
 
-export function buildRequest({ task, toolName, toolArgs, toolMetadata, trace }, model) {
-  // 字段顺序
+export function buildRequest({ userTask, history, proposedToolCall, toolMetadata }, model) {
   const userContent = JSON.stringify({
-    task,
-    tool_name: toolName,
-    tool_args: toolArgs,
+    user_task: userTask,
+    history,
+    proposed_tool_call: proposedToolCall,
     tool_metadata: toolMetadata,
-    trace,
   })
   return {
     model,
@@ -25,12 +25,12 @@ export function buildRequest({ task, toolName, toolArgs, toolMetadata, trace }, 
       { role: 'user', content: userContent },
     ],
     temperature: 0,
-    max_tokens: 64,
+    max_tokens: 128,
     response_format: { type: 'json_object' },
   }
 }
 
-// 返回 { ok, authorization, riskLevel, usage, latencyMs, error }
+// 返回 { ok, authorization, riskLevel, riskFactors, rationale, usage, latencyMs, error }
 export async function classify(input, cfg) {
   const { url, model, timeout_ms = 10000 } = cfg.classifier
   const body = buildRequest(input, model)
@@ -49,17 +49,16 @@ export async function classify(input, cfg) {
 
     const choice = data?.choices?.[0]
     const usage = data?.usage ?? null
-    if (choice?.finish_reason !== 'stop') return fail(`finish_reason=${choice?.finish_reason}（输出被截断或异常）`, usage)
-
     let parsed
     try { parsed = JSON.parse(choice?.message?.content ?? '') } catch { return fail('模型输出不是合法 JSON', usage) }
-    // 只看这两个字段；值不在约定范围内都当作模型出错（交给 on_error）
     const authorization = typeof parsed?.authorization === 'string' ? parsed.authorization.trim().toUpperCase() : parsed?.authorization
     const riskLevel = typeof parsed?.risk_level === 'string' ? parsed.risk_level.trim().toUpperCase() : parsed?.risk_level
     if (!AUTHORIZATION_LABELS.includes(authorization)) return fail(`authorization 不合法: ${JSON.stringify(parsed?.authorization)}`, usage)
     if (!RISK_LEVEL_LABELS.includes(riskLevel)) return fail(`risk_level 不合法: ${JSON.stringify(parsed?.risk_level)}`, usage)
+    const riskFactors = Array.isArray(parsed?.risk_factors) ? parsed.risk_factors.map(x => String(x)) : []
+    const rationale = typeof parsed?.rationale === 'string' ? parsed.rationale.trim() : ''
 
-    return { ok: true, authorization, riskLevel, usage, latencyMs: Date.now() - started, error: null }
+    return { ok: true, authorization, riskLevel, riskFactors, rationale, usage, latencyMs: Date.now() - started, error: null }
   } catch (err) {
     return fail(err?.name === 'AbortError' ? `超时（${timeout_ms}ms）` : `请求失败: ${err?.message ?? err}`)
   } finally {

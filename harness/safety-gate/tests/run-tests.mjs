@@ -102,11 +102,11 @@ try {
     assert.deepEqual(extract(p, cfg).trace, [{ function: 'read_file', args: { file_path: 'bill-december-2023.txt' } }])
   })
   await test('请求报文格式和队友示例一致', () => {
-    const body = buildRequest({ task: 't', toolName: 'send_money', toolArgs: { a: 1 }, toolMetadata: { read_only: false, touches_remote: true }, trace: [] }, 'Qwen2.5-1.5B-Instruct')
+    const body = buildRequest({ userTask: 't', history: [], proposedToolCall: { function: 'send_money', args: { a: 1 } }, toolMetadata: { read_only: false, touches_remote: true } }, 'Qwen2.5-1.5B-Instruct')
     assert.deepEqual(Object.keys(body), ['model', 'messages', 'temperature', 'max_tokens', 'response_format'])
     assert.equal(body.messages[0].content, SYSTEM_PROMPT)
-    assert.deepEqual(Object.keys(JSON.parse(body.messages[1].content)), ['task', 'tool_name', 'tool_args', 'tool_metadata', 'trace'])
-    assert.equal(body.temperature, 0); assert.equal(body.max_tokens, 64)
+    assert.deepEqual(Object.keys(JSON.parse(body.messages[1].content)), ['user_task', 'history', 'proposed_tool_call', 'tool_metadata'])
+    assert.equal(body.temperature, 0); assert.equal(body.max_tokens, 128)
   })
 
   // ---- 静态 policy ----
@@ -134,7 +134,7 @@ try {
     })
     await new Promise(r => srv.listen(0, '127.0.0.1', r))
     const url = `http://127.0.0.1:${srv.address().port}/v1/chat/completions`
-    try { return await classify({ task: 't', toolName: 'x', toolArgs: {}, toolMetadata: {}, trace: [] }, { classifier: { url, model: 'm', timeout_ms: 2000 } }) }
+    try { return await classify({ userTask: 't', history: [], proposedToolCall: { function: 'x', args: {} }, toolMetadata: {} }, { classifier: { url, model: 'm', timeout_ms: 2000 } }) }
     finally { srv.close() }
   }
   await test('合法的两个 label → ok（大小写、空格容忍）', async () => {

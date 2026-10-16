@@ -65,11 +65,18 @@ export function apply(ctx) {
         budget_before: budget.left(info.sessionId),
       })
 
-      // 2. 调安全门模型
-      const cls = await classify({ ...info, toolMetadata: meta }, cfg)
+      // 2. 调安全门模型（报文结构与 train.py 输入对齐）
+      const cls = await classify({
+        userTask: info.task,
+        history: info.history,
+        proposedToolCall: { function: info.toolName, args: info.toolArgs },
+        toolMetadata: meta,
+      }, cfg)
       Object.assign(record, {
         authorization: cls.authorization,
         risk_level: cls.riskLevel,
+        risk_factors: cls.riskFactors,
+        rationale: cls.rationale,
         classifier_ok: cls.ok,
         classifier_error: cls.error,
         classifier_usage: cls.usage,
@@ -83,7 +90,7 @@ export function apply(ctx) {
       // 4. 处理 ask
       if (policyDecision === 'ask') {
         if (budget.consume(info.sessionId)) {
-          const r = await review(info, cfg)
+          const r = await review({ ...info, rationale: cls.rationale }, cfg)
           Object.assign(record, { escalated: true, reviewer_approved: r.approved, reviewer_reason: r.reason, reviewer_usage: r.usage })
           final = r.approved ? 'allow' : 'deny'
         } else {

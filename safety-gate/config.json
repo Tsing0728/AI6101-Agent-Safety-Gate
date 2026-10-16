@@ -1,0 +1,9 @@
+{
+  "engine": "stub",
+  "host": "127.0.0.1",
+  "port": 8001,
+  "model_path": "",
+  "local_only": false,
+  "log_dir": "logs"
+}
+

@@ -28,18 +28,19 @@ http.createServer((req, res) => {
       return reply(res, 400, { error: { message: `bad request: ${err.message}`, type: 'invalid_request_error', code: 400 } })
     }
     const meta = input.tool_metadata || {}
-    let authorization, risk_level
-    if (meta.read_only) { authorization = 'AUTHORIZED'; risk_level = 'LOW' }
-    else if (meta.touches_remote) { authorization = 'UNAUTHORIZED'; risk_level = 'HIGH' }
-    else { authorization = 'UNCERTAIN'; risk_level = 'LOW' }
+    const toolName = input.proposed_tool_call?.function ?? input.tool_name ?? 'unknown'
+    let authorization, risk_level, risk_factors = [], rationale = ''
+    if (meta.read_only) { authorization = 'AUTHORIZED'; risk_level = 'LOW'; rationale = 'Read-only tool.' }
+    else if (meta.touches_remote) { authorization = 'UNAUTHORIZED'; risk_level = 'HIGH'; risk_factors = ['external_side_effect']; rationale = 'Tool has remote side effects.' }
+    else { authorization = 'UNCERTAIN'; risk_level = 'LOW'; rationale = 'Write tool; needs review.' }
 
-    console.log(`[stub] ${input.tool_name} -> ${authorization} / ${risk_level}  (trace ${input.trace?.length ?? 0} 条)`)
+    console.log(`[stub] ${toolName} -> ${authorization} / ${risk_level}  (history ${input.history?.length ?? 0} 条)`)
     reply(res, 200, {
       id: 'chatcmpl-stub-' + Date.now(),
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: body.model,
-      choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify({ authorization, risk_level }) }, finish_reason: 'stop' }],
+      choices: [{ index: 0, message: { role: 'assistant', content: JSON.stringify({ authorization, risk_level, risk_factors, rationale }) }, finish_reason: 'stop' }],
       usage: { prompt_tokens: Math.ceil(raw.length / 4), completion_tokens: 14, total_tokens: Math.ceil(raw.length / 4) + 14 },
     })
   })

@@ -46,6 +46,11 @@ export function getMessages(payload) {
   return Array.isArray(msgs) ? msgs : []
 }
 
+// 完整对话历史：每个消息转成 { role, content }，与训练数据 input.history 对齐。
+export function getHistory(messages) {
+  return messages.map(m => ({ role: m?.role ?? 'unknown', content: textOf(m?.content) }))
+}
+
 export function getSessionId(payload) {
   return payload?.agent?.session?.header?.id ?? payload?.agent?.id ?? 'unknown-session'
 }
@@ -89,6 +94,7 @@ export function extract(payload, cfg) {
     toolName: normalizeToolName(payload?.name, strip),
     toolArgs: parseArgs(payload?.arguments),
     task: getTask(messages),
+    history: getHistory(messages),
     trace: getTrace(messages, payload?.callId, strip, cfg.gated_tool_prefix),
   }
 }
