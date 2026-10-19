@@ -1,0 +1,23 @@
+{
+  "k": 3,
+
+  "classifier": {
+    "url": "http://127.0.0.1:8001/v1/chat/completions",
+    "model": "Qwen2.5-1.5B-Instruct",
+    "timeout_ms": 60000
+  },
+
+  "on_error": "deny",
+
+  "reviewer": {
+    "placeholder_decision": "deny"
+  },
+
+  "gated_tool_prefix": "mcp__agentdojo__",
+
+  "other_tools": "deny",
+
+  "strip_tool_name_prefix": true,
+
+  "log_dir": "logs"
+}

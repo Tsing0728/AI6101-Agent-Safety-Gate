@@ -1,29 +1,56 @@
-# Python
+# ===== Python =====
 __pycache__/
 *.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
 .venv/
 venv/
+env/
+ENV/
 
-# Generated results and data
-FullSmoke/
-runs/
-data/
-*.xlsx
-*.jsonl
+# Packaging
+build/
+dist/
+*.egg-info/
 
-# dsh runtime homes
-.dsh-home*/
-
-# Model artifacts / checkpoints
-checkpoints/
-*.safetensors
-*.gguf
-
-# IDE / OS
+# ===== IDE / OS =====
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 
-# Logs
+# ===== Model artifacts (training outputs, not committed) =====
+#checkpoint/
+#checkpoints/
+*.safetensors
+*.gguf
+
+# ===== Logs (runtime / training / service) =====
 *.log
+logs/
+
+# ===== Experiment / benchmark outputs =====
+FullSmoke/
+runs/
+data/
+e2e-verify/runs/
+e2e-verify/travel-runs/
+e2e-verify/travel-smoke/
+
+# Generated reports / exports
+*.xlsx
+
+# dsh runtime homes
+.dsh-home*/
+
+# Diagnostic / scratch scripts
+_diag_*.py
+_smoke_*.py
+
+# ===== Secrets =====
+.env
+.env.*
