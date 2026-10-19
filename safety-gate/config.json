@@ -1,9 +1,10 @@
 {
-  "engine": "stub",
+  "engine": "hf",
   "host": "127.0.0.1",
   "port": 8001,
-  "model_path": "",
-  "local_only": false,
+  "model_path": "checkpoint",
+  "local_only": true,
+  "quantize": "4bit",
   "log_dir": "logs"
 }
 

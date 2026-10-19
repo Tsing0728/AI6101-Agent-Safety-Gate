@@ -4,7 +4,7 @@
   "classifier": {
     "url": "http://127.0.0.1:8001/v1/chat/completions",
     "model": "Qwen2.5-1.5B-Instruct",
-    "timeout_ms": 10000
+    "timeout_ms": 60000
   },
 
   "on_error": "deny",
