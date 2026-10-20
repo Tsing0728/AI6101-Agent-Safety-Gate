@@ -26,8 +26,9 @@ Thumbs.db
 # ===== Model artifacts (training outputs, not committed) =====
 #checkpoint/
 #checkpoints/
-*.safetensors
-*.gguf
+#*.safetensors
+#*.gguf
+
 
 # ===== Logs (runtime / training / service) =====
 *.log
