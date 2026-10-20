@@ -10,6 +10,12 @@
   "on_error": "deny",
 
   "reviewer": {
+    "mode": "llm",
+    "url": "https://api.deepseek.com/chat/completions",
+    "model": "deepseek-flash",
+    "timeout_ms": 60000,
+    "max_result_chars": 4000,
+    "on_error": "deny",
     "placeholder_decision": "deny"
   },
 

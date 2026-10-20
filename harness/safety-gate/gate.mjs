@@ -23,7 +23,8 @@ export function apply(ctx) {
   const cfg = loadConfig()
   const budget = new Budget(cfg.k)
   const log = makeLogger(cfg.log_dir)
-  console.log(`[safety-gate] 已加载。k=${cfg.k}，非 AgentDojo 工具=${cfg.other_tools ?? 'deny'}，模型服务=${cfg.classifier.url}`)
+  const reviewerDesc = cfg.reviewer?.mode === 'llm' ? `LLM（${cfg.reviewer.model}）` : `占位（固定${cfg.reviewer?.placeholder_decision === 'approve' ? '批准' : '拒绝'}）`
+  console.log(`[safety-gate] 已加载。k=${cfg.k}，非 AgentDojo 工具=${cfg.other_tools ?? 'deny'}，模型服务=${cfg.classifier.url}，审核员=${reviewerDesc}`)
 
   ctx.on('tools/pre-execute', async (payload, next) => {
     // 只审批 AgentDojo 的工具（名字以 gated_tool_prefix 开头）。
@@ -90,8 +91,12 @@ export function apply(ctx) {
       // 4. 处理 ask
       if (policyDecision === 'ask') {
         if (budget.consume(info.sessionId)) {
-          const r = await review({ ...info, rationale: cls.rationale }, cfg)
-          Object.assign(record, { escalated: true, reviewer_approved: r.approved, reviewer_reason: r.reason, reviewer_usage: r.usage })
+          // 审核员不看安全门模型的 label / 理由，独立判断
+          const r = await review(info, cfg)
+          Object.assign(record, {
+            escalated: true, reviewer_approved: r.approved, reviewer_reason: r.reason, reviewer_usage: r.usage,
+            reviewer_error: r.error, reviewer_latency_ms: r.latencyMs,
+          })
           final = r.approved ? 'allow' : 'deny'
         } else {
           Object.assign(record, { escalated: false, budget_exhausted: true })

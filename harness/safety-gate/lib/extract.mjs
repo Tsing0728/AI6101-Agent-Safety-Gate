@@ -88,6 +88,30 @@ export function getHistory(messages, currentCallId, gatedPrefix = '') {
   return history
 }
 
+// 给模拟审核员看的对话记录（不用对齐训练格式，所以写得比 history 详细：带工具名和参数）
+// 和 history 一样截止到当前这次调用所在的 assistant 消息之前；dsh 自带工具不放进来。
+// 每一项：{ kind: 'say', text } 或 { kind: 'call', function, args, result, isError, blocked }
+//   blocked = 被本插件拒绝、没有执行（真人审核员也能看到之前哪些操作被拦了）
+export function getTranscript(messages, currentCallId, strip = true, gatedPrefix = '') {
+  const results = collectResultInfo(messages)
+  const isGated = name => !gatedPrefix || (typeof name === 'string' && name.startsWith(gatedPrefix))
+  const out = []
+  for (const m of messages) {
+    if (m?.role !== 'assistant' || !Array.isArray(m.content)) continue
+    const calls = m.content.filter(b => b?.type === 'tool-call')
+    if (currentCallId && calls.some(b => b.id === currentCallId)) break
+    const text = textOf(m.content)
+    if (text) out.push({ kind: 'say', text })
+    for (const b of calls) {
+      if (!isGated(b.name) || !results.has(b.id)) continue
+      const r = results.get(b.id)
+      const blocked = r.text.includes(DENY_MESSAGE)
+      out.push({ kind: 'call', function: normalizeToolName(b.name, strip), args: parseArgs(b.arguments), result: blocked ? '' : r.text, isError: r.isError, blocked })
+    }
+  }
+  return out
+}
+
 export function getSessionId(payload) {
   return payload?.agent?.session?.header?.id ?? payload?.agent?.id ?? 'unknown-session'
 }
@@ -132,6 +156,7 @@ export function extract(payload, cfg) {
     toolArgs: parseArgs(payload?.arguments),
     task: getTask(messages),
     history: getHistory(messages, payload?.callId, cfg.gated_tool_prefix),
+    transcript: getTranscript(messages, payload?.callId, strip, cfg.gated_tool_prefix),
     trace: getTrace(messages, payload?.callId, strip, cfg.gated_tool_prefix),
   }
 }
