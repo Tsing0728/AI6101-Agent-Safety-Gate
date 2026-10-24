@@ -9,6 +9,12 @@
 
   "on_error": "deny",
 
+  "policy": {
+    "version": "v2.1",
+    "reserve_for_external": 1,
+    "local_read_classifier_timeout_ms": 10000
+  },
+
   "reviewer": {
     "mode": "llm",
     "url": "https://api.deepseek.com/chat/completions",
